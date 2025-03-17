@@ -11,9 +11,9 @@ static int pg_stats_show(struct seq_file *m, void *v)
 
 	rcu_read_lock();
 	for_each_process(task) {
-		if (task->state == TASK_RUNNING ||
-		    task->state == TASK_INTERRUPTIBLE ||
-		    task->state == TASK_UNINTERRUPTIBLE) {
+		if (task->__state == TASK_RUNNING ||
+		    task->__state == TASK_INTERRUPTIBLE ||
+		    task->__state == TASK_UNINTERRUPTIBLE) {
 			seq_printf(
 				m,
 				"%d: [%llu,%llu,%llu], [%llu,%llu,%llu], [%llu,%llu,%llu], [%llu,%llu,%llu]\n",
