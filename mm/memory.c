@@ -3214,8 +3214,6 @@ static vm_fault_t fault_dirty_shared_page(struct vm_fault *vmf)
 	 */
 	mapping = folio_raw_mapping(folio);
 	folio_unlock(folio);
-	if (vma->vm_flags & VM_LOCKED)
-		current->fault_mlocked++;
 
 	if (!page_mkwrite)
 		file_update_time(vma->vm_file);
@@ -3676,6 +3674,9 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct folio *folio = NULL;
 	pte_t pte;
+
+	if (vma->vm_flags & VM_LOCKED)
+		current->fault_mlocked++;
 
 	if (likely(!unshare)) {
 		if (userfaultfd_pte_wp(vma, ptep_get(vmf->pte))) {
@@ -4238,6 +4239,9 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	unsigned long address;
 	pte_t *ptep;
 
+	if (vma->vm_flags & VM_LOCKED)
+		current->fault_mlocked++;
+
 	if (!pte_unmap_same(vmf))
 		goto out;
 
@@ -4603,8 +4607,6 @@ check_folio:
 	arch_do_swap_page_nr(vma->vm_mm, vma, address,
 			pte, pte, nr_pages);
 
-	// Probably wrong
-	current->fault_user++;
 	folio_unlock(folio);
 	if (folio != swapcache && swapcache) {
 		/*
@@ -4772,6 +4774,9 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
 	vm_fault_t ret = 0;
 	int nr_pages = 1;
 	pte_t entry;
+
+	if (vma->vm_flags & VM_LOCKED)
+		current->fault_mlocked++;
 
 	/* File mapping without ->vm_ops ? */
 	if (vma->vm_flags & VM_SHARED)
@@ -5341,6 +5346,7 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
 static vm_fault_t do_cow_fault(struct vm_fault *vmf)
 {
 	current->fault_cow++;
+	current->fault_write++;
 	struct vm_area_struct *vma = vmf->vma;
 	struct folio *folio;
 	vm_fault_t ret;
@@ -6110,8 +6116,10 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 	 * Enable the memcg OOM handling for faults triggered in user
 	 * space.  Kernel faults are handled more gracefully.
 	 */
-	if (flags & FAULT_FLAG_USER)
+	if (flags & FAULT_FLAG_USER) {
 		mem_cgroup_enter_user_fault();
+		current->fault_user++;
+	}
 
 	lru_gen_enter_fault(vma);
 
