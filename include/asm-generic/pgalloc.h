@@ -111,6 +111,7 @@ static inline void pte_free(struct mm_struct *mm, struct page *pte_page)
 
 	pagetable_pte_dtor(ptdesc);
 	pagetable_free(ptdesc);
+	current->pte_free_count++;
 }
 
 
@@ -150,6 +151,7 @@ static inline pmd_t *pmd_alloc_one_noprof(struct mm_struct *mm, unsigned long ad
 #ifndef __HAVE_ARCH_PMD_FREE
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
+	current->pmd_free_count++;
 	struct ptdesc *ptdesc = virt_to_ptdesc(pmd);
 
 	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
@@ -220,6 +222,7 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	pagetable_free(virt_to_ptdesc(pgd));
+	current->pgd_free_count++;
 }
 #endif
 

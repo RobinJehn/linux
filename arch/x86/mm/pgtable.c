@@ -52,15 +52,16 @@ early_param("userpte", setup_userpte);
 
 void ___pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 {
+	current->pte_free_count++;
 	pagetable_pte_dtor(page_ptdesc(pte));
 	paravirt_release_pte(page_to_pfn(pte));
 	paravirt_tlb_remove_table(tlb, pte);
-	current->pte_free_count++;
 }
 
 #if CONFIG_PGTABLE_LEVELS > 2
 void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 {
+	current->pmd_free_count++;
 	struct ptdesc *ptdesc = virt_to_ptdesc(pmd);
 	paravirt_release_pmd(__pa(pmd) >> PAGE_SHIFT);
 	/*
@@ -72,12 +73,12 @@ void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 #endif
 	pagetable_pmd_dtor(ptdesc);
 	paravirt_tlb_remove_table(tlb, ptdesc_page(ptdesc));
-	current->pmd_free_count++;
 }
 
 #if CONFIG_PGTABLE_LEVELS > 3
 void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 {
+	current->pud_free_count++;
 	struct ptdesc *ptdesc = virt_to_ptdesc(pud);
 
 	pagetable_pud_dtor(ptdesc);
@@ -438,12 +439,12 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	pmd_t *u_pmds[MAX_PREALLOCATED_USER_PMDS];
 	pmd_t *pmds[MAX_PREALLOCATED_PMDS];
 
+	current->pgd_alloc_count++;
 	pgd = _pgd_alloc();
 
 	if (pgd == NULL)
 		goto out;
 
-	current->pgd_alloc_count++;
 	mm->pgd = pgd;
 
 	if (sizeof(pmds) != 0 &&
@@ -489,11 +490,11 @@ out:
 
 void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
+	current->pgd_free_count++;
 	pgd_mop_up_pmds(mm, pgd);
 	pgd_dtor(pgd);
 	paravirt_pgd_free(mm, pgd);
 	_pgd_free(pgd);
-	current->pgd_free_count++;
 }
 
 /*
