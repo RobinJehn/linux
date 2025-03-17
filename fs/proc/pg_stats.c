@@ -11,15 +11,20 @@ static int pg_stats_show(struct seq_file *m, void *v)
 
 	rcu_read_lock();
 	for_each_process(task) {
-		seq_printf(
-			m,
-			"%d: [%llu,%llu,%llu], [%llu,%llu,%llu], [%llu,%llu,%llu], [%llu,%llu,%llu]\n",
-			task->pid, task->pgd_alloc_count, task->pgd_free_count,
-			task->pgd_set_count, task->pud_alloc_count,
-			task->pud_free_count, task->pud_set_count,
-			task->pmd_alloc_count, task->pmd_free_count,
-			task->pmd_set_count, task->pte_alloc_count,
-			task->pte_free_count, task->pte_set_count);
+		if (task->state == TASK_RUNNING ||
+		    task->state == TASK_INTERRUPTIBLE ||
+		    task->state == TASK_UNINTERRUPTIBLE) {
+			seq_printf(
+				m,
+				"%d: [%llu,%llu,%llu], [%llu,%llu,%llu], [%llu,%llu,%llu], [%llu,%llu,%llu]\n",
+				task->pid, task->pgd_alloc_count,
+				task->pgd_free_count, task->pgd_set_count,
+				task->pud_alloc_count, task->pud_free_count,
+				task->pud_set_count, task->pmd_alloc_count,
+				task->pmd_free_count, task->pmd_set_count,
+				task->pte_alloc_count, task->pte_free_count,
+				task->pte_set_count);
+		}
 	}
 	rcu_read_unlock();
 	return 0;

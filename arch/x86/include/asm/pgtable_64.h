@@ -66,9 +66,9 @@ void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
 
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
 {
-	#ifdef OS_BOOT_FLAG
+#ifndef OS_BOOT_FLAG
 	current->pte_set_count++;
-	#endif
+#endif
 
 	WRITE_ONCE(*ptep, pte);
 }
@@ -86,9 +86,9 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 
 static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
-	#ifdef OS_BOOT_FLAG
+#ifndef OS_BOOT_FLAG
 	current->pmd_set_count++;
-	#endif
+#endif
 	WRITE_ONCE(*pmdp, pmd);
 }
 
@@ -125,9 +125,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
 {
-	#ifdef OS_BOOT_FLAG
+#ifndef OS_BOOT_FLAG
 	current->pud_set_count++;
-	#endif
+#endif
 	WRITE_ONCE(*pudp, pud);
 }
 
@@ -173,9 +173,9 @@ static inline void native_p4d_clear(p4d_t *p4d)
 
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
-	#ifdef OS_BOOT_FLAG
+#ifndef OS_BOOT_FLAG
 	current->pgd_set_count++;
-	#endif
+#endif
 	WRITE_ONCE(*pgdp, pti_set_user_pgtbl(pgdp, pgd));
 }
 
