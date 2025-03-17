@@ -443,11 +443,10 @@ void pmd_install(struct mm_struct *mm, pmd_t *pmd, pgtable_t *pte)
 
 int __pte_alloc(struct mm_struct *mm, pmd_t *pmd)
 {
+	current->pte_alloc_count++;
 	pgtable_t new = pte_alloc_one(mm);
 	if (!new)
 		return -ENOMEM;
-
-	current->pte_alloc_count++;
 
 	pmd_install(mm, pmd, &new);
 	if (new)
@@ -6350,11 +6349,11 @@ int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
  */
 int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
 {
+	current->pud_alloc_count++;
 	pud_t *new = pud_alloc_one(mm, address);
 	if (!new)
 		return -ENOMEM;
 
-	current->pud_alloc_count++;
 	spin_lock(&mm->page_table_lock);
 	if (!p4d_present(*p4d)) {
 		mm_inc_nr_puds(mm);
@@ -6374,12 +6373,12 @@ int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
  */
 int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 {
+	current->pmd_alloc_count++;
 	spinlock_t *ptl;
 	pmd_t *new = pmd_alloc_one(mm, address);
 	if (!new)
 		return -ENOMEM;
 
-	current->pmd_alloc_count++;
 	ptl = pud_lock(mm, pud);
 	if (!pud_present(*pud)) {
 		mm_inc_nr_pmds(mm);
