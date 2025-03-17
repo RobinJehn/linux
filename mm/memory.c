@@ -447,6 +447,8 @@ int __pte_alloc(struct mm_struct *mm, pmd_t *pmd)
 	if (!new)
 		return -ENOMEM;
 
+	current->pte_alloc_count++;
+
 	pmd_install(mm, pmd, &new);
 	if (new)
 		pte_free(mm, new);
@@ -3745,6 +3747,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 			return 0;
 		}
 		wp_page_reuse(vmf, folio);
+		// Might be wrong
 		current->fault_write++;
 		return 0;
 	}
@@ -4601,6 +4604,7 @@ check_folio:
 	arch_do_swap_page_nr(vma->vm_mm, vma, address,
 			pte, pte, nr_pages);
 
+	// Probably wrong
 	current->fault_user++;
 	folio_unlock(folio);
 	if (folio != swapcache && swapcache) {
@@ -5337,6 +5341,7 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
 
 static vm_fault_t do_cow_fault(struct vm_fault *vmf)
 {
+	current->fault_cow++;
 	struct vm_area_struct *vma = vmf->vma;
 	struct folio *folio;
 	vm_fault_t ret;
@@ -5367,7 +5372,6 @@ static vm_fault_t do_cow_fault(struct vm_fault *vmf)
 
 	ret |= finish_fault(vmf);
 
-	current->fault_cow++;
 unlock:
 	unlock_page(vmf->page);
 	put_page(vmf->page);
@@ -6350,6 +6354,7 @@ int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
 	if (!new)
 		return -ENOMEM;
 
+	current->pud_alloc_count++;
 	spin_lock(&mm->page_table_lock);
 	if (!p4d_present(*p4d)) {
 		mm_inc_nr_puds(mm);
@@ -6374,6 +6379,7 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 	if (!new)
 		return -ENOMEM;
 
+	current->pmd_alloc_count++;
 	ptl = pud_lock(mm, pud);
 	if (!pud_present(*pud)) {
 		mm_inc_nr_pmds(mm);

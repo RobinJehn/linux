@@ -210,6 +210,7 @@ static inline void __pud_free(struct mm_struct *mm, pud_t *pud)
 static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
 	__pud_free(mm, pud);
+	current->pud_free_count++;
 }
 #endif
 

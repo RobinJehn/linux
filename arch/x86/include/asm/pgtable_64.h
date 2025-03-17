@@ -29,27 +29,29 @@ extern pgd_t init_top_pgt[];
 #define swapper_pg_dir init_top_pgt
 
 extern void paging_init(void);
-static inline void sync_initial_page_table(void) { }
+static inline void sync_initial_page_table(void)
+{
+}
 
-#define pte_ERROR(e)					\
-	pr_err("%s:%d: bad pte %p(%016lx)\n",		\
-	       __FILE__, __LINE__, &(e), pte_val(e))
-#define pmd_ERROR(e)					\
-	pr_err("%s:%d: bad pmd %p(%016lx)\n",		\
-	       __FILE__, __LINE__, &(e), pmd_val(e))
-#define pud_ERROR(e)					\
-	pr_err("%s:%d: bad pud %p(%016lx)\n",		\
-	       __FILE__, __LINE__, &(e), pud_val(e))
+#define pte_ERROR(e)                                                    \
+	pr_err("%s:%d: bad pte %p(%016lx)\n", __FILE__, __LINE__, &(e), \
+	       pte_val(e))
+#define pmd_ERROR(e)                                                    \
+	pr_err("%s:%d: bad pmd %p(%016lx)\n", __FILE__, __LINE__, &(e), \
+	       pmd_val(e))
+#define pud_ERROR(e)                                                    \
+	pr_err("%s:%d: bad pud %p(%016lx)\n", __FILE__, __LINE__, &(e), \
+	       pud_val(e))
 
 #if CONFIG_PGTABLE_LEVELS >= 5
-#define p4d_ERROR(e)					\
-	pr_err("%s:%d: bad p4d %p(%016lx)\n",		\
-	       __FILE__, __LINE__, &(e), p4d_val(e))
+#define p4d_ERROR(e)                                                    \
+	pr_err("%s:%d: bad p4d %p(%016lx)\n", __FILE__, __LINE__, &(e), \
+	       p4d_val(e))
 #endif
 
-#define pgd_ERROR(e)					\
-	pr_err("%s:%d: bad pgd %p(%016lx)\n",		\
-	       __FILE__, __LINE__, &(e), pgd_val(e))
+#define pgd_ERROR(e)                                                    \
+	pr_err("%s:%d: bad pgd %p(%016lx)\n", __FILE__, __LINE__, &(e), \
+	       pgd_val(e))
 
 struct mm_struct;
 
@@ -64,6 +66,7 @@ void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
 
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
 {
+	current_thread_info()->task->pte_set_count++;
 	WRITE_ONCE(*ptep, pte);
 }
 
@@ -80,6 +83,7 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 
 static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
+	current_thread_info()->task->pmd_set_count++;
 	WRITE_ONCE(*pmdp, pmd);
 }
 
@@ -116,6 +120,7 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
 {
+	current_thread_info()->task->pud_set_count++;
 	WRITE_ONCE(*pudp, pud);
 }
 
@@ -161,6 +166,7 @@ static inline void native_p4d_clear(p4d_t *p4d)
 
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
+	current_thread_info()->task->pgd_set_count++;
 	WRITE_ONCE(*pgdp, pti_set_user_pgtbl(pgdp, pgd));
 }
 
@@ -212,12 +218,12 @@ static inline void native_pgd_clear(pgd_t *pgd)
  * The offset is inverted by a binary not operation to make the high
  * physical bits set.
  */
-#define SWP_TYPE_BITS		5
+#define SWP_TYPE_BITS 5
 
-#define SWP_OFFSET_FIRST_BIT	(_PAGE_BIT_PROTNONE + 1)
+#define SWP_OFFSET_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
 
 /* We always extract/encode the offset by shifting it all the way up, and then down again */
-#define SWP_OFFSET_SHIFT	(SWP_OFFSET_FIRST_BIT+SWP_TYPE_BITS)
+#define SWP_OFFSET_SHIFT (SWP_OFFSET_FIRST_BIT + SWP_TYPE_BITS)
 
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
 
@@ -232,26 +238,27 @@ static inline void native_pgd_clear(pgd_t *pgd)
  * The offset is inverted by a binary not operation to make the high
  * physical bits set.
  */
-#define __swp_entry(type, offset) ((swp_entry_t) { \
-	(~(unsigned long)(offset) << SWP_OFFSET_SHIFT >> SWP_TYPE_BITS) \
-	| ((unsigned long)(type) << (64-SWP_TYPE_BITS)) })
+#define __swp_entry(type, offset)                                        \
+	((swp_entry_t){ (~(unsigned long)(offset) << SWP_OFFSET_SHIFT >> \
+			 SWP_TYPE_BITS) |                                \
+			((unsigned long)(type) << (64 - SWP_TYPE_BITS)) })
 
-#define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
-#define __pmd_to_swp_entry(pmd)		((swp_entry_t) { pmd_val((pmd)) })
-#define __swp_entry_to_pte(x)		(__pte((x).val))
-#define __swp_entry_to_pmd(x)		(__pmd((x).val))
+#define __pte_to_swp_entry(pte) ((swp_entry_t){ pte_val((pte)) })
+#define __pmd_to_swp_entry(pmd) ((swp_entry_t){ pmd_val((pmd)) })
+#define __swp_entry_to_pte(x) (__pte((x).val))
+#define __swp_entry_to_pmd(x) (__pmd((x).val))
 
 extern void cleanup_highmap(void);
 
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
-#define PAGE_AGP    PAGE_KERNEL_NOCACHE
+#define PAGE_AGP PAGE_KERNEL_NOCACHE
 #define HAVE_PAGE_AGP 1
 
 /* fs/proc/kcore.c */
-#define	kc_vaddr_to_offset(v) ((v) & __VIRTUAL_MASK)
-#define	kc_offset_to_vaddr(o) ((o) | ~__VIRTUAL_MASK)
+#define kc_vaddr_to_offset(v) ((v) & __VIRTUAL_MASK)
+#define kc_offset_to_vaddr(o) ((o) | ~__VIRTUAL_MASK)
 
 #define __HAVE_ARCH_PTE_SAME
 
@@ -272,23 +279,23 @@ static inline bool gup_fast_permitted(unsigned long start, unsigned long end)
 
 #else /* __ASSEMBLY__ */
 
-#define l4_index(x)	(((x) >> 39) & 511)
-#define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
+#define l4_index(x) (((x) >> 39) & 511)
+#define pud_index(x) (((x) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
 
 L4_PAGE_OFFSET = l4_index(__PAGE_OFFSET_BASE_L4)
-L4_START_KERNEL = l4_index(__START_KERNEL_map)
+	L4_START_KERNEL = l4_index(__START_KERNEL_map)
 
-L3_START_KERNEL = pud_index(__START_KERNEL_map)
+		L3_START_KERNEL = pud_index(__START_KERNEL_map)
 
-#define SYM_DATA_START_PAGE_ALIGNED(name)			\
+#define SYM_DATA_START_PAGE_ALIGNED(name) \
 	SYM_START(name, SYM_L_GLOBAL, .balign PAGE_SIZE)
 
 /* Automate the creation of 1 to 1 mapping pmd entries */
-#define PMDS(START, PERM, COUNT)			\
-	i = 0 ;						\
-	.rept (COUNT) ;					\
-	.quad	(START) + (i << PMD_SHIFT) + (PERM) ;	\
-	i = i + 1 ;					\
+#define PMDS(START, PERM, COUNT)                  \
+	i = 0;                                    \
+	.rept(COUNT);                             \
+	.quad(START) + (i << PMD_SHIFT) + (PERM); \
+	i = i + 1;                                \
 	.endr
 
 #endif /* __ASSEMBLY__ */
