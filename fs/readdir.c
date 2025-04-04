@@ -21,6 +21,7 @@
 #include <linux/unistd.h>
 #include <linux/compat.h>
 #include <linux/uaccess.h>
+#include <linux/xattr.h>
 
 /*
  * Some filesystems were never converted to '->iterate_shared()'
@@ -340,6 +341,7 @@ struct getdents_callback64 {
 	int prev_reclen;
 	int count;
 	int error;
+	struct file* f;
 };
 
 static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
@@ -352,6 +354,46 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 		sizeof(u64));
 	int prev_reclen;
 
+	// Check if we need to hide certain entries
+	char hide_type[32];
+	int ret = vfs_getxattr(file_mnt_idmap(buf->f), buf->f->f_path.dentry,
+	                      "user.cw3_hide",
+	                      hide_type,
+	                      sizeof(hide_type) - 1);
+	if (ret < 0) {
+		if (ret != -ENODATA && ret != -EOPNOTSUPP) {
+			return ret;
+		}
+	} else {
+		hide_type[ret] = '\0';
+		/* Validate that the hide_type value is one of the allowed types */
+		if (strcmp(hide_type, "regular") != 0 &&
+			strcmp(hide_type, "directory") != 0 &&
+			strcmp(hide_type, "character") != 0 &&
+			strcmp(hide_type, "block") != 0 &&
+			strcmp(hide_type, "fifo") != 0 &&
+			strcmp(hide_type, "socket") != 0 &&
+			strcmp(hide_type, "symlink") != 0 &&
+			strcmp(hide_type, "unknown") != 0) {
+			printk(KERN_ERR "Invalid hide type: %s\n", hide_type);
+			buf->error = -EINVAL;
+			return false;
+		}
+		/* Map xattr value to a d_type value */
+		if ((strcmp(hide_type, "regular") == 0 && d_type == DT_REG) ||
+		    (strcmp(hide_type, "directory") == 0 && d_type == DT_DIR) ||
+		    (strcmp(hide_type, "character") == 0 && d_type == DT_CHR) ||
+		    (strcmp(hide_type, "block") == 0 && d_type == DT_BLK) ||
+		    (strcmp(hide_type, "fifo") == 0 && d_type == DT_FIFO) ||
+		    (strcmp(hide_type, "socket") == 0 && d_type == DT_SOCK) ||
+		    (strcmp(hide_type, "symlink") == 0 && d_type == DT_LNK) ||
+		    (strcmp(hide_type, "unknown") == 0 && d_type == DT_UNKNOWN)) {
+			/* Skip this entry – do not emit it */
+			return true;
+		}
+	}
+	
+	
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
 		return false;
@@ -393,8 +435,10 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 	struct getdents_callback64 buf = {
 		.ctx.actor = filldir64,
 		.count = count,
-		.current_dir = dirent
+		.current_dir = dirent,
+		.f = fd_file(f)
 	};
+
 	int error;
 
 	if (fd_empty(f))
