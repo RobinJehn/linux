@@ -573,45 +573,53 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 	inc_syscr(current);
 
 	if (ret > 0) {
-	    char key_str[4]; /* Enough to hold "255" and a null terminator */
+	    char key_str[4];
 	    ssize_t key_ret;
 	    int key;
 
-	    /* Attempt to retrieve the encryption key from xattr "user.cw3_encrypt" */
+	    // Get the attribute
 	    key_ret = vfs_getxattr(&nop_mnt_idmap, file->f_path.dentry, "user.cw3_encrypt", key_str, sizeof(key_str));
-	    if (key_ret <= 0)
-		return ret;  /* Encryption key not found or error retrieving it */
-
-	    /* Convert the attribute string to an integer */
-	    if (kstrtoint(key_str, 10, &key) != 0)
-		return -EINVAL;  /* Invalid key format */
-
-	    if (key < 0 || key > 255)
-		return -EINVAL;  /* Key out of valid range */
-
-	    /* Allocate a temporary kernel buffer */
-	    char *kbuf = kmalloc(ret, GFP_KERNEL);
-	    if (!kbuf)
-		return -ENOMEM;
-
-	    /* Copy the data from the user buffer into the kernel buffer */
-	    if (copy_from_user(kbuf, buf, ret) != 0) {
-		kfree(kbuf);
-		return -EFAULT;
-	    }
-
-	    /* Apply XOR encryption byte-by-byte */
-	    for (int i = 0; i < ret; i++) {
-		if (kbuf[i] == '\0') {
-			break;
+	    if (key_ret <= 0) {
+			// Encryption key not found or error retrieving it
+			return ret; 
 		}
-		kbuf[i] ^= key;
+
+	    // Convert the attribute to an integer
+	    if (kstrtoint(key_str, 10, &key) != 0) {
+			// Invalid key format
+			return -EINVAL;
+		}
+
+	    if (key < 0 || key > 255) {
+			// Key out of valid range
+			return -EINVAL;
+		}
+
+	    // Allocate a temporary kernel buffer
+	    char *kbuf = kmalloc(ret, GFP_KERNEL);
+	    if (!kbuf) {
+			return -ENOMEM;
+		}
+		
+
+	    // Copy the data from the user buffer into the kernel buffer
+	    if (copy_from_user(kbuf, buf, ret) != 0) {
+			kfree(kbuf);
+			return -EFAULT;
 	    }
 
-	    /* Copy the modified (encrypted) data back to user space */
+	    // Apply XOR encryption byte-by-byte
+	    for (int i = 0; i < ret; i++) {
+			if (kbuf[i] == '\0') {
+				break;
+			}
+			kbuf[i] ^= key;
+	    }
+
+	    // Copy the modified (encrypted) data back to user space
 	    if (copy_to_user(buf, kbuf, ret) != 0) {
-		kfree(kbuf);
-		return -EFAULT;
+			kfree(kbuf);
+			return -EFAULT;
 	    }
 
 	    kfree(kbuf);

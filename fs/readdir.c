@@ -366,7 +366,7 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 		}
 	} else {
 		hide_type[ret] = '\0';
-		/* Validate that the hide_type value is one of the allowed types */
+		// Validate that the hide_type value is one of the allowed types
 		if (strcmp(hide_type, "regular") != 0 &&
 			strcmp(hide_type, "directory") != 0 &&
 			strcmp(hide_type, "character") != 0 &&
@@ -379,7 +379,7 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 			buf->error = -EINVAL;
 			return false;
 		}
-		/* Map xattr value to a d_type value */
+		// Ignore if the entry type matches the hide_type
 		if ((strcmp(hide_type, "regular") == 0 && d_type == DT_REG) ||
 		    (strcmp(hide_type, "directory") == 0 && d_type == DT_DIR) ||
 		    (strcmp(hide_type, "character") == 0 && d_type == DT_CHR) ||
@@ -388,7 +388,6 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 		    (strcmp(hide_type, "socket") == 0 && d_type == DT_SOCK) ||
 		    (strcmp(hide_type, "symlink") == 0 && d_type == DT_LNK) ||
 		    (strcmp(hide_type, "unknown") == 0 && d_type == DT_UNKNOWN)) {
-			/* Skip this entry – do not emit it */
 			return true;
 		}
 	}
