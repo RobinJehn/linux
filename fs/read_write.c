@@ -21,6 +21,7 @@
 #include <linux/mount.h>
 #include <linux/fs.h>
 #include "internal.h"
+#include <linux/xattr.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -570,6 +571,60 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 		add_rchar(current, ret);
 	}
 	inc_syscr(current);
+
+	if (ret > 0) {
+	    char key_str[4];
+	    ssize_t key_ret;
+	    int key;
+
+	    // Get the attribute
+	    key_ret = vfs_getxattr(&nop_mnt_idmap, file->f_path.dentry, "user.cw3_encrypt", key_str, sizeof(key_str));
+	    if (key_ret <= 0) {
+			// Encryption key not found or error retrieving it
+			return ret; 
+		}
+
+	    // Convert the attribute to an integer
+	    if (kstrtoint(key_str, 10, &key) != 0) {
+			// Invalid key format
+			return -EINVAL;
+		}
+
+	    if (key < 0 || key > 255) {
+			// Key out of valid range
+			return -EINVAL;
+		}
+
+	    // Allocate a temporary kernel buffer
+	    char *kbuf = kmalloc(ret, GFP_KERNEL);
+	    if (!kbuf) {
+			return -ENOMEM;
+		}
+		
+
+	    // Copy the data from the user buffer into the kernel buffer
+	    if (copy_from_user(kbuf, buf, ret) != 0) {
+			kfree(kbuf);
+			return -EFAULT;
+	    }
+
+	    // Apply XOR encryption byte-by-byte
+	    for (int i = 0; i < ret; i++) {
+			if (kbuf[i] == '\0') {
+				break;
+			}
+			kbuf[i] ^= key;
+	    }
+
+	    // Copy the modified (encrypted) data back to user space
+	    if (copy_to_user(buf, kbuf, ret) != 0) {
+			kfree(kbuf);
+			return -EFAULT;
+	    }
+
+	    kfree(kbuf);
+	}
+	
 	return ret;
 }
 
